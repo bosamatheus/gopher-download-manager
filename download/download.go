@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"sync"
 )
 
 type download struct {
@@ -34,7 +35,7 @@ func (d download) Do() error {
 	}
 
 	sections := d.makeSections(size)
-	d.downloadAllSequentially(sections)
+	d.downloadAll(sections)
 
 	err = d.merge(sections)
 	if err != nil {
@@ -96,14 +97,21 @@ func (d download) makeSections(size int) [][2]int {
 	return sections
 }
 
-func (d download) downloadAllSequentially(sections [][2]int) error {
+func (d download) downloadAll(sections [][2]int) {
+	var wg sync.WaitGroup
 	for i, s := range sections {
-		err := d.downloadSection(i, s)
-		if err != nil {
-			return err
-		}
+		wg.Add(1)
+		i := i
+		s := s
+		go func() {
+			defer wg.Done()
+			err := d.downloadSection(i, s)
+			if err != nil {
+				panic(err)
+			}
+		}()
 	}
-	return nil
+	wg.Wait()
 }
 
 func (d download) downloadSection(i int, s [2]int) error {

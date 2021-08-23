@@ -20,6 +20,7 @@ func New(url, filename string, threads string) (*download, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid number of threads: %v", threads)
 	}
+
 	return &download{
 		url:           url,
 		targetPath:    "data/" + filename,
@@ -34,10 +35,22 @@ func (d download) Do() error {
 		return err
 	}
 
+	// Create directory to save the result
+	err = os.MkdirAll("data", os.ModePerm)
+	if err != nil {
+		return err
+	}
+	// Create directory to save temp files
+	err = os.MkdirAll("temp", os.ModePerm)
+	if err != nil {
+		return err
+	}
 	sections := d.makeSections(size)
 	d.downloadAll(sections)
 
 	err = d.merge(sections)
+	// Remove temp files
+	os.RemoveAll("temp")
 	if err != nil {
 		return err
 	}
